@@ -3,7 +3,7 @@ from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from database import Base
 import enum  # این خط را اضافه کنید
-
+from passlib.context import CryptContext
 # ============================================
 # تعریف Enum برای نقش‌های کاربری
 # ============================================
@@ -11,6 +11,8 @@ class UserRoleEnum(enum.Enum):
     USER = "کاربر عادی"
     VISITOR = "بازدیدکننده"
     ADMIN = "ادمین"
+
+pwd_context = CryptContext(schemes=["bcrypt"] , deprecated = True)
 
 # ============================================
 # جدول واسط Many-to-Many بین کتاب و نویسنده
@@ -67,6 +69,16 @@ class User(Base):
 
     # رابطه Many-to-Many با نقش‌ها
     roles = relationship("Role", secondary=user_role, back_populates="users")
+
+    def hash_password(self , password_1):
+        pwd_context.hash(password_1)
+
+
+    def verify_password(self , password_2):
+        pwd_context.verify(self.password , password_2)
+
+    def set_password(self , password_3):
+        self.password = self.hash_password(password_3)
 
 
 # ============================================
