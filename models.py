@@ -2,8 +2,9 @@ from sqlalchemy import Column, Integer, String, Text, Date, DateTime, ForeignKey
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from database import Base
-import enum  # این خط را اضافه کنید
+import enum
 from passlib.context import CryptContext
+
 # ============================================
 # تعریف Enum برای نقش‌های کاربری
 # ============================================
@@ -12,7 +13,8 @@ class UserRoleEnum(enum.Enum):
     VISITOR = "بازدیدکننده"
     ADMIN = "ادمین"
 
-pwd_context = CryptContext(schemes=["bcrypt"] , deprecated = True)
+# ✅ این خط را درست کنید - مقدار deprecated باید "auto" باشد
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")  # ✅ درست
 
 # ============================================
 # جدول واسط Many-to-Many بین کتاب و نویسنده
@@ -67,19 +69,22 @@ class User(Base):
     last_name = Column(String(100), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
-    # رابطه Many-to-Many با نقش‌ها
     roles = relationship("Role", secondary=user_role, back_populates="users")
 
-    def hash_password(self , password_1):
-        pwd_context.hash(password_1)
+    def hash_password(self, password: str) -> str:
+        """هش کردن پسورد"""
+        return pwd_context.hash(password)
 
+    def verify_password(self, plain_password: str) -> bool:
+        """تأیید پسورد"""
+        return pwd_context.verify(plain_password, self.password)
 
-    def verify_password(self , password_2):
-        pwd_context.verify(self.password , password_2)
+    def set_password(self, password: str) -> None:
+        """تنظیم پسورد هش شده"""
+        self.password = self.hash_password(password)
 
-    def set_password(self , password_3):
-        self.password = self.hash_password(password_3)
-
+    def __repr__(self):
+        return f"<User(id={self.id}, username='{self.username}')>"
 
 # ============================================
 # 3. جدول نویسندگان (Author)
