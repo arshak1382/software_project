@@ -3,18 +3,17 @@ from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from database import Base
 import enum
-from passlib.context import CryptContext
+import bcrypt
 
 # ============================================
 # تعریف Enum برای نقش‌های کاربری
 # ============================================
 class UserRoleEnum(enum.Enum):
-    USER = "کاربر عادی"
-    VISITOR = "بازدیدکننده"
-    ADMIN = "ادمین"
+    VIOWER = "VIOWER"
+    EDITOR = "EDITOR"
+    ADMIN = "ADMIN"
 
 # ✅ این خط را درست کنید - مقدار deprecated باید "auto" باشد
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")  # ✅ درست
 
 # ============================================
 # جدول واسط Many-to-Many بین کتاب و نویسنده
@@ -44,12 +43,8 @@ class Role(Base):
     __tablename__ = "roles"
 
     id = Column(Integer, primary_key=True, index=True)
-    name = Column(String(50), unique=True, nullable=False)
-    description = Column(Text, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
-    
-    # ستون Role_of_user با استفاده از Enum
-    Role_of_user = Column(Enum(UserRoleEnum), nullable=False, default=UserRoleEnum.USER)
+    Role_of_user = Column(Enum(UserRoleEnum), nullable=False, default="VIOWER")
 
     # رابطه Many-to-Many با کاربران
     users = relationship("User", secondary=user_role, back_populates="roles")
@@ -72,13 +67,20 @@ class User(Base):
     roles = relationship("Role", secondary=user_role, back_populates="users")
 
     def hash_password(self, password: str) -> str:
-        """هش کردن پسورد"""
-        return pwd_context.hash(password)
-
+        password_bytes = password.encode('utf-8')
+        if len(password_bytes) > 72:
+            password_bytes = password_bytes[:72]
+        salt = bcrypt.gensalt()
+        return bcrypt.hashpw(password_bytes, salt).decode('utf-8')
+    
     def verify_password(self, plain_password: str) -> bool:
-        """تأیید پسورد"""
-        return pwd_context.verify(plain_password, self.password)
-
+        try:
+            plain_bytes = plain_password.encode('utf-8')
+            if len(plain_bytes) > 72:
+                plain_bytes = plain_bytes[:72]
+            return bcrypt.checkpw(plain_bytes, self.password.encode('utf-8'))
+        except:
+            return False
     def set_password(self, password: str) -> None:
         """تنظیم پسورد هش شده"""
         self.password = self.hash_password(password)
