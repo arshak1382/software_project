@@ -1,54 +1,72 @@
-
 from fastapi import FastAPI, Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.orm import Session
 from typing import Optional
-
-from database import engine, Base, get_db  # ✅ اضافه کردن engine و Base
-import models  # ✅ ایمپورت مدل‌ها برای ایجاد جداول
-from models import User, UserRoleEnum
+from auth_user import decode_token, create_token, secret_password_admin, secret_password_editor
+from database import engine, Base, get_db  
+import models  
+from models import User, UserRoleEnum, Role
 from schemas import (
     UserCreate,
     UserResponse,
-    # در صورت نیاز سایر ایمپورت‌ها را اضافه کنید
+    Userlogin
 )
 
-# ============================================
-# ✅ ایجاد جداول در دیتابیس (قبل از هر چیز)
-# ============================================
-print("🔄 در حال ایجاد جداول دیتابیس...")
+print("🔄 creating database ...")
 Base.metadata.create_all(bind=engine)
-print("✅ جداول با موفقیت ایجاد شدند!")
+print("✅ database created")
 
-# ============================================
-# راه‌اندازی برنامه FastAPI
-# ============================================
 app = FastAPI(
     title="سامانه مدیریت کتابخانه",
     description="API برای مدیریت کتابخانه، کاربران و نقش‌ها",
     version="1.0.0"
 )
 
-security = HTTPBearer()  # ✅ اصلاح املای security
+security = HTTPBearer()  
+
+VIOWER = "VIOWER"
+EDITOR = "EDITOR"
+ADMIN = "ADMIN"
+
 
 # ============================================
-# 1. اندپوینت لاگین (در حال توسعه)
+# لاگین کاربر
 # ============================================
 @app.post("/login/")
-def login_user(credential: HTTPAuthorizationCredentials = Depends(security)):
+def login_user(response: Userlogin, db: Session = Depends(get_db)):
+    # پیدا کردن کاربر
+    user_obj = db.query(User).filter(User.username == response.username).first()
+    
+    if not user_obj:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="نام کاربری یا رمز عبور اشتباه است"
+        )
+    
+    if not user_obj.verify_password(response.password):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="نام کاربری یا رمز عبور اشتباه است"
+        )
+    
+    if response.password == secret_password_admin:
+        type_user = ADMIN
+    elif response.password == secret_password_editor:
+        type_user = EDITOR
+    else:
+        type_user = VIOWER
+    
+    # ایجاد توکن با type_user
+    access_token = create_token(user_obj.id, type_user)
+    return {"access_token": access_token, "token_type": "bearer"}
 
-    return {
-    }
 
 # ============================================
-# 2. ایجاد کاربر جدید
+# ایجاد کاربر جدید
 # ============================================
 @app.post("/users/", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
 def create_user(user: UserCreate, db: Session = Depends(get_db)):
-    """
-    ✅ ایجاد کاربر جدید با هش کردن پسورد
-    """
-    # بررسی وجود کاربر با همین نام کاربری یا ایمیل
+
     existing_user = db.query(User).filter(
         (User.username == user.username) | (User.email == user.email)
     ).first()
@@ -56,28 +74,46 @@ def create_user(user: UserCreate, db: Session = Depends(get_db)):
     if existing_user:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="❌ نام کاربری یا ایمیل قبلاً ثبت شده است"
+            detail="نام کاربری یا ایمیل قبلاً ثبت شده است"
         )
     
-    # ✅ ایجاد کاربر جدید (بدون تنظیم پسورد در این مرحله)
+    if user.password == secret_password_admin:
+        role_enum = UserRoleEnum.ADMIN
+    elif user.password == secret_password_editor:
+        role_enum = UserRoleEnum.EDITOR
+    else:
+        role_enum = UserRoleEnum.VIOWER
+    
+
     new_user = User(
         username=user.username,
         email=user.email,
         first_name=user.first_name,
         last_name=user.last_name
-        # password را جداگانه تنظیم می‌کنیم
     )
     
-    # ✅ تنظیم پسورد هش شده با متد set_password
     new_user.set_password(user.password)
     
-    # ذخیره در دیتابیس
     db.add(new_user)
     db.commit()
     db.refresh(new_user)
     
-    print(f"✅ کاربر جدید ایجاد شد: {new_user.username} (ID: {new_user.id})")
+    role = db.query(Role).filter(Role.Role_of_user == role_enum).first()
+    
+    if not role:
+        role = Role(Role_of_user=role_enum)
+        db.add(role)
+        db.commit()
+        db.refresh(role)
+    
+    new_user.roles.append(role)
+    
+    db.commit()
+    db.refresh(new_user)
+    
     return new_user
+
+
 
 # # ============================================
 # # 3. دریافت لیست کاربران (برای تست)
