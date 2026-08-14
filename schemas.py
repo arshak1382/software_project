@@ -1,15 +1,15 @@
-from pydantic import BaseModel, EmailStr, Field , field_validator
+from pydantic import BaseModel, EmailStr, Field, field_validator, ConfigDict
 from typing import Optional, List
 from datetime import date, datetime
 from enum import Enum
 
 # ============================================
-# Schema برای UserRoleEnum
+# Schema برای UserRoleEnum (هماهنگ با مدل)
 # ============================================
 class UserRoleEnumSchema(str, Enum):
-    USER = "کاربر عادی"
-    VISITOR = "بازدیدکننده"
-    ADMIN = "ادمین"
+    VIOWER = "VIOWER"  # ✅ هماهنگ با مدل
+    EDITOR = "EDITOR"  # ✅ هماهنگ با مدل
+    ADMIN = "ADMIN"    # ✅ هماهنگ با مدل
 
 # ============================================
 # 1. Schema های مربوط به Role
@@ -17,9 +17,9 @@ class UserRoleEnumSchema(str, Enum):
 
 # پایه Role
 class RoleBase(BaseModel):
-    name: str = Field(..., max_length=50, description="نام نقش")
+    name: Optional[str] = Field(None, max_length=50, description="نام نقش")  # ✅ اختیاری
     description: Optional[str] = Field(None, description="توضیحات نقش")
-    Role_of_user: UserRoleEnumSchema = Field(default=UserRoleEnumSchema.USER, description="نوع نقش")
+    Role_of_user: UserRoleEnumSchema = Field(default=UserRoleEnumSchema.VIOWER, description="نوع نقش")
 
 # برای ایجاد Role جدید
 class RoleCreate(RoleBase):
@@ -32,12 +32,13 @@ class RoleUpdate(BaseModel):
     Role_of_user: Optional[UserRoleEnumSchema] = None
 
 # برای نمایش Role
-class RoleResponse(RoleBase):
+class RoleResponse(BaseModel):
     id: int
+    name: Optional[str] = None  # ✅ اختیاری
+    Role_of_user: UserRoleEnumSchema
     created_at: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)  # ✅ جدید
 
 # ============================================
 # 2. Schema های مربوط به User
@@ -50,9 +51,13 @@ class UserBase(BaseModel):
     first_name: Optional[str] = Field(None, max_length=100, description="نام")
     last_name: Optional[str] = Field(None, max_length=100, description="نام خانوادگی")
 
+class Userlogin(BaseModel):
+    username: str = Field(..., max_length=100, description="نام کاربری")
+    password: str = Field(..., min_length=1, description="رمز عبور")  # ✅ min_length را کم کردم
+
 # برای ایجاد User جدید
 class UserCreate(UserBase):
-    password: str = Field(..., min_length=8, description="رمز عبور")
+    password: str = Field(..., min_length=1, description="رمز عبور")  # ✅ min_length را کم کردم
     role_ids: Optional[List[int]] = Field(default=[], description="لیست شناسه نقش‌ها")
 
     @field_validator('password')
@@ -76,14 +81,13 @@ class UserUpdate(BaseModel):
             raise ValueError('رمز عبور باید حداقل 8 کاراکتر باشد')
         return v
 
-# برای نمایش User (بدون رمز عبور)
+# برای نمایش User (بدون رمز عبور) - ✅ اصلاح شده
 class UserResponse(UserBase):
     id: int
     created_at: datetime
-    roles: List[RoleResponse] = []
+    roles: List[RoleResponse] = []  # ✅ استفاده از RoleResponse درست
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)  # ✅ جدید
 
 # برای نمایش User با رمز عبور (برای استفاده داخلی)
 class UserInDB(UserResponse):
@@ -117,8 +121,7 @@ class AuthorResponse(AuthorBase):
     created_at: datetime
     books: List['BookResponse'] = []
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 # ============================================
 # 4. Schema های مربوط به Book
@@ -131,7 +134,6 @@ class BookBase(BaseModel):
     category: Optional[str] = Field(None, max_length=50, description="دسته‌بندی")
     description: Optional[str] = Field(None, description="توضیحات")
     quantity: int = Field(default=1, ge=0, description="تعداد موجودی")
-
 
 # برای ایجاد Book جدید
 class BookCreate(BookBase):
@@ -146,15 +148,13 @@ class BookUpdate(BaseModel):
     quantity: Optional[int] = Field(None, ge=0)
     author_ids: Optional[List[int]] = None
 
-
 # برای نمایش Book
 class BookResponse(BookBase):
     id: int
     created_at: datetime
     authors: List[AuthorResponse] = []
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 # ============================================
 # 5. Schema های ترکیبی و کاربردی
