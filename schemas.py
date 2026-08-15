@@ -7,17 +7,17 @@ from enum import Enum
 # Schema برای UserRoleEnum (هماهنگ با مدل)
 # ============================================
 class UserRoleEnumSchema(str, Enum):
-    VIOWER = "VIOWER"  # ✅ هماهنگ با مدل
-    EDITOR = "EDITOR"  # ✅ هماهنگ با مدل
-    ADMIN = "ADMIN"    # ✅ هماهنگ با مدل
+    VIOWER = "VIOWER"
+    EDITOR = "EDITOR"
+    ADMIN = "ADMIN"
+
 
 # ============================================
 # 1. Schema های مربوط به Role
 # ============================================
 
-# پایه Role
+# پایه Role - ✅ اصلاح شده (حذف فیلد name)
 class RoleBase(BaseModel):
-    name: Optional[str] = Field(None, max_length=50, description="نام نقش")  # ✅ اختیاری
     description: Optional[str] = Field(None, description="توضیحات نقش")
     Role_of_user: UserRoleEnumSchema = Field(default=UserRoleEnumSchema.VIOWER, description="نوع نقش")
 
@@ -27,18 +27,17 @@ class RoleCreate(RoleBase):
 
 # برای به‌روزرسانی Role
 class RoleUpdate(BaseModel):
-    name: Optional[str] = Field(None, max_length=50)
     description: Optional[str] = None
     Role_of_user: Optional[UserRoleEnumSchema] = None
 
-# برای نمایش Role
+# برای نمایش Role - ✅ اصلاح شده (حذف فیلد name)
 class RoleResponse(BaseModel):
     id: int
-    name: Optional[str] = None  # ✅ اختیاری
     Role_of_user: UserRoleEnumSchema
     created_at: datetime
 
-    model_config = ConfigDict(from_attributes=True)  # ✅ جدید
+    model_config = ConfigDict(from_attributes=True)
+
 
 # ============================================
 # 2. Schema های مربوط به User
@@ -53,11 +52,11 @@ class UserBase(BaseModel):
 
 class Userlogin(BaseModel):
     username: str = Field(..., max_length=100, description="نام کاربری")
-    password: str = Field(..., min_length=1, description="رمز عبور")  # ✅ min_length را کم کردم
+    password: str = Field(..., min_length=1, description="رمز عبور")
 
 # برای ایجاد User جدید
 class UserCreate(UserBase):
-    password: str = Field(..., min_length=1, description="رمز عبور")  # ✅ min_length را کم کردم
+    password: str = Field(..., min_length=1, description="رمز عبور")
     role_ids: Optional[List[int]] = Field(default=[], description="لیست شناسه نقش‌ها")
 
     @field_validator('password')
@@ -81,17 +80,18 @@ class UserUpdate(BaseModel):
             raise ValueError('رمز عبور باید حداقل 8 کاراکتر باشد')
         return v
 
-# برای نمایش User (بدون رمز عبور) - ✅ اصلاح شده
+# برای نمایش User (بدون رمز عبور)
 class UserResponse(UserBase):
     id: int
     created_at: datetime
-    roles: List[RoleResponse] = []  # ✅ استفاده از RoleResponse درست
+    roles: List[RoleResponse] = []
 
-    model_config = ConfigDict(from_attributes=True)  # ✅ جدید
+    model_config = ConfigDict(from_attributes=True)
 
 # برای نمایش User با رمز عبور (برای استفاده داخلی)
 class UserInDB(UserResponse):
     password: str
+
 
 # ============================================
 # 3. Schema های مربوط به Author
@@ -122,6 +122,7 @@ class AuthorResponse(AuthorBase):
     books: List['BookResponse'] = []
 
     model_config = ConfigDict(from_attributes=True)
+
 
 # ============================================
 # 4. Schema های مربوط به Book
@@ -156,6 +157,7 @@ class BookResponse(BookBase):
 
     model_config = ConfigDict(from_attributes=True)
 
+
 # ============================================
 # 5. Schema های ترکیبی و کاربردی
 # ============================================
@@ -182,6 +184,7 @@ class SuccessResponse(BaseModel):
     message: str
     status_code: int = 200
 
+
 # ============================================
 # 6. Schema برای Login
 # ============================================
@@ -194,6 +197,7 @@ class LoginResponse(BaseModel):
     access_token: str
     token_type: str = "bearer"
     user: UserResponse
+
 
 # ============================================
 # 7. Schema برای Pagination
