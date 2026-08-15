@@ -13,7 +13,6 @@ class UserRoleEnum(enum.Enum):
     EDITOR = "EDITOR"
     ADMIN = "ADMIN"
 
-# ✅ این خط را درست کنید - مقدار deprecated باید "auto" باشد
 
 # ============================================
 # جدول واسط Many-to-Many بین کتاب و نویسنده
@@ -44,14 +43,14 @@ class Role(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
-    Role_of_user = Column(Enum(UserRoleEnum), nullable=False, default="VIOWER")
+    Role_of_user = Column(Enum(UserRoleEnum), nullable=False, default=UserRoleEnum.VIOWER)  # ✅ اصلاح شده
 
     # رابطه Many-to-Many با کاربران
     users = relationship("User", secondary=user_role, back_populates="roles")
 
 
 # ============================================
-# 2. جدول کاربران (User) - این کلاس را اضافه کنید
+# 2. جدول کاربران (User)
 # ============================================
 class User(Base):
     __tablename__ = "users"
@@ -81,12 +80,14 @@ class User(Base):
             return bcrypt.checkpw(plain_bytes, self.password.encode('utf-8'))
         except:
             return False
+    
     def set_password(self, password: str) -> None:
         """تنظیم پسورد هش شده"""
         self.password = self.hash_password(password)
 
     def __repr__(self):
         return f"<User(id={self.id}, username='{self.username}')>"
+
 
 # ============================================
 # 3. جدول نویسندگان (Author)
