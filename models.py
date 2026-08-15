@@ -5,18 +5,14 @@ from database import Base
 import enum
 import bcrypt
 
-# ============================================
-# تعریف Enum برای نقش‌های کاربری
-# ============================================
+
+# تیبل نقش
 class UserRoleEnum(enum.Enum):
     VIOWER = "VIOWER"
     EDITOR = "EDITOR"
     ADMIN = "ADMIN"
 
-
-# ============================================
-# جدول واسط Many-to-Many بین کتاب و نویسنده
-# ============================================
+#تیبل واسط
 book_author = Table(
     'book_author',
     Base.metadata,
@@ -24,9 +20,9 @@ book_author = Table(
     Column('author_id', Integer, ForeignKey('authors.id'), primary_key=True)
 )
 
-# ============================================
-# جدول واسط Many-to-Many بین کاربر و نقش
-# ============================================
+
+#تیبل واسط
+
 user_role = Table(
     'user_role',
     Base.metadata,
@@ -35,23 +31,18 @@ user_role = Table(
 )
 
 
-# ============================================
-# 1. جدول نقش‌های کاربری (Role)
-# ============================================
+
 class Role(Base):
     __tablename__ = "roles"
 
     id = Column(Integer, primary_key=True, index=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
-    Role_of_user = Column(Enum(UserRoleEnum), nullable=False, default=UserRoleEnum.VIOWER)  # ✅ اصلاح شده
+    Role_of_user = Column(Enum(UserRoleEnum), nullable=False, default=UserRoleEnum.VIOWER)  #  در اخر کار چک می کنم
 
     # رابطه Many-to-Many با کاربران
     users = relationship("User", secondary=user_role, back_populates="roles")
 
 
-# ============================================
-# 2. جدول کاربران (User)
-# ============================================
 class User(Base):
     __tablename__ = "users"
 
@@ -89,9 +80,11 @@ class User(Base):
         return f"<User(id={self.id}, username='{self.username}')>"
 
 
-# ============================================
-# 3. جدول نویسندگان (Author)
-# ============================================
+
+
+
+
+
 class Author(Base):
     __tablename__ = "authors"
 
@@ -103,12 +96,12 @@ class Author(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     # رابطه Many-to-Many با کتاب‌ها
-    books = relationship("Book", secondary=book_author, back_populates="authors")
+    books = relationship("Book", secondary=book_author, back_populates="authors"  )
 
 
-# ============================================
-# 4. جدول کتاب‌ها (Book)
-# ============================================
+
+
+
 class Book(Base):
     __tablename__ = "books"
 
@@ -120,5 +113,5 @@ class Book(Base):
     quantity = Column(Integer, default=1)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
-    # رابطه Many-to-Many با نویسندگان
+    #ارتباط رابطه many to many
     authors = relationship("Author", secondary=book_author, back_populates="books")
