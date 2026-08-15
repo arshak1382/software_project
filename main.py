@@ -35,7 +35,7 @@ ADMIN = "ADMIN"
 
 
 
-
+####################################امنیت توکن#########################
 
 def get_current_user_from_token(
     credentials: HTTPAuthorizationCredentials = Depends(security),
@@ -81,7 +81,7 @@ def get_current_user_from_token(
             detail=f"خطا در احراز هویت: {str(e)}"
         )
 
-
+########################################   لاگین   ################################################################
 @app.post("/login/", response_model=LoginResponse)
 def login_user(response: Userlogin, db: Session = Depends(get_db)):
     # پیدا کردن کاربر
@@ -112,7 +112,7 @@ def login_user(response: Userlogin, db: Session = Depends(get_db)):
     )
 
 
-
+###########################################  ثبت نام    ##########################################################
 
 
 @app.post("/users/", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
@@ -124,8 +124,7 @@ def create_user(user: UserCreate, db: Session = Depends(get_db)):
     if existing_user:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="نام کاربری یا ایمیل قبلاً ثبت شده است"
-        )
+            detail="نام کاربری یا ایمیل قبلاً ثبت شده است")
     
 
     if user.password == secret_password_admin:
@@ -164,7 +163,7 @@ def create_user(user: UserCreate, db: Session = Depends(get_db)):
     return new_user
 
 
-
+##############################################################################################################
 
 
 
@@ -324,8 +323,7 @@ def create_author(
         first_name=author.first_name,
         last_name=author.last_name,
         birth_date=author.birth_date,
-        nationality=author.nationality
-    )
+        nationality=author.nationality)
     
     db.add(new_author)
     db.commit()
@@ -354,8 +352,7 @@ def get_author(
     if not author:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="نویسنده یافت نشد"
-        )
+            detail="نویسنده یافت نشد")
     return author
 
 
@@ -380,8 +377,7 @@ def update_author(
     if not author:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="نویسنده یافت نشد"
-        )
+            detail="نویسنده یافت نشد")
     
   
     author.first_name = author_update.first_name
@@ -437,8 +433,7 @@ def get_users(
     if ADMIN not in user_roles:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="شما دسترسی لازم را ندارید. فقط ادمین می‌تواند لیست کاربران را ببیند"
-        )
+            detail="شما دسترسی لازم را ندارید. فقط ادمین می‌تواند لیست کاربران را ببیند")
     
     users = db.query(User).all()
     return users
@@ -451,6 +446,9 @@ def get_user(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user_from_token)
 ):
+    
+
+
    
     user_roles = [role.Role_of_user.value for role in current_user.roles]
     if ADMIN not in user_roles:
@@ -487,8 +485,7 @@ def delete_user(
     if current_user.id == user_id:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="شما نمی‌توانید خودتان را حذف کنید"
-        )
+            detail="شما نمی‌توانید خودتان را حذف کنید")
     
     user = db.query(User).filter(User.id == user_id).first()
     if not user:
@@ -501,6 +498,7 @@ def delete_user(
     db.commit()
     
     return None
+
 
 
 
