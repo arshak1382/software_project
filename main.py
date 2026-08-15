@@ -1,15 +1,20 @@
 from fastapi import FastAPI, Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.orm import Session
-from typing import Optional
+from typing import Optional, List
 from auth_user import decode_token, create_token, secret_password_admin, secret_password_editor
 from database import engine, Base, get_db  
 import models  
-from models import User, UserRoleEnum, Role
+from models import User, UserRoleEnum, Role, Book, Author
 from schemas import (
     UserCreate,
     UserResponse,
-    Userlogin
+    Userlogin,
+    BookCreate,
+    BookResponse,
+    AuthorCreate,
+    AuthorResponse,
+    LoginResponse
 )
 
 print("🔄 creating database ...")
@@ -22,17 +27,62 @@ app = FastAPI(
     version="1.0.0"
 )
 
-security = HTTPBearer()  
+security = HTTPBearer()
 
 VIOWER = "VIOWER"
 EDITOR = "EDITOR"
 ADMIN = "ADMIN"
 
 
-# ============================================
-# لاگین کاربر
-# ============================================
-@app.post("/login/")
+
+
+
+def get_current_user_from_token(
+    credentials: HTTPAuthorizationCredentials = Depends(security),
+    db: Session = Depends(get_db)
+) -> User:
+    """دریافت کاربر فعلی از توکن"""
+    try:
+
+        token = credentials.credentials
+        
+        if not token:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="توکن ارسال نشده است"
+            )
+        
+        payload = decode_token(token)
+        
+        user_id = payload.get("user_id")
+        if not user_id:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="شناسه کاربر در توکن یافت نشد"
+            )
+        
+        user = db.query(User).filter(User.id == user_id).first()
+        if not user:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="کاربر یافت نشد"
+            )
+        
+        user_roles = [role.Role_of_user.value for role in user.roles]
+        print(f"✅ کاربر پیدا شد: {user.username} (ID: {user.id}) - نقش‌ها: {user_roles}")
+        
+        return user
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail=f"خطا در احراز هویت: {str(e)}"
+        )
+
+
+@app.post("/login/", response_model=LoginResponse)
 def login_user(response: Userlogin, db: Session = Depends(get_db)):
     # پیدا کردن کاربر
     user_obj = db.query(User).filter(User.username == response.username).first()
@@ -49,24 +99,24 @@ def login_user(response: Userlogin, db: Session = Depends(get_db)):
             detail="نام کاربری یا رمز عبور اشتباه است"
         )
     
-    if response.password == secret_password_admin:
-        type_user = ADMIN
-    elif response.password == secret_password_editor:
-        type_user = EDITOR
-    else:
-        type_user = VIOWER
+    # دریافت نقش کاربر از دیتابیس
+    user_role = user_obj.roles[0].Role_of_user.value if user_obj.roles else VIOWER
     
-    # ایجاد توکن با type_user
-    access_token = create_token(user_obj.id, type_user)
-    return {"access_token": access_token, "token_type": "bearer"}
+    # ایجاد توکن با نقش واقعی کاربر
+    access_token = create_token(user_obj.id, user_role)
+    
+    return LoginResponse(
+        access_token=access_token,
+        token_type="bearer",
+        user=UserResponse.model_validate(user_obj)
+    )
 
 
-# ============================================
-# ایجاد کاربر جدید
-# ============================================
+
+
+
 @app.post("/users/", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
 def create_user(user: UserCreate, db: Session = Depends(get_db)):
-
     existing_user = db.query(User).filter(
         (User.username == user.username) | (User.email == user.email)
     ).first()
@@ -77,6 +127,7 @@ def create_user(user: UserCreate, db: Session = Depends(get_db)):
             detail="نام کاربری یا ایمیل قبلاً ثبت شده است"
         )
     
+
     if user.password == secret_password_admin:
         role_enum = UserRoleEnum.ADMIN
     elif user.password == secret_password_editor:
@@ -84,7 +135,6 @@ def create_user(user: UserCreate, db: Session = Depends(get_db)):
     else:
         role_enum = UserRoleEnum.VIOWER
     
-
     new_user = User(
         username=user.username,
         email=user.email,
@@ -115,112 +165,349 @@ def create_user(user: UserCreate, db: Session = Depends(get_db)):
 
 
 
-# # ============================================
-# # 3. دریافت لیست کاربران (برای تست)
-# # ============================================
-# @app.get("/users/", response_model=list[UserResponse])
-# def get_users(
-#     skip: int = 0,
-#     limit: int = 10,
-#     db: Session = Depends(get_db)
-# ):
-#     """
-#     ✅ دریافت لیست کاربران با صفحه‌بندی
-#     """
-#     users = db.query(User).offset(skip).limit(limit).all()
-#     return users
 
-# # ============================================
-# # 4. دریافت یک کاربر با ID
-# # ============================================
-# @app.get("/users/{user_id}", response_model=UserResponse)
-# def get_user_by_id(user_id: int, db: Session = Depends(get_db)):
-#     """
-#     ✅ دریافت اطلاعات یک کاربر با شناسه
-#     """
-#     user = db.query(User).filter(User.id == user_id).first()
-#     if not user:
-#         raise HTTPException(
-#             status_code=status.HTTP_404_NOT_FOUND,
-#             detail=f"❌ کاربر با شناسه {user_id} یافت نشد"
-#         )
-#     return user
 
-# # ============================================
-# # 5. به‌روزرسانی کاربر
-# # ============================================
-# @app.put("/users/{user_id}", response_model=UserResponse)
-# def update_user(
-#     user_id: int,
-#     user_update: UserCreate,  # می‌توانید از UserUpdate استفاده کنید
-#     db: Session = Depends(get_db)
-# ):
-#     """
-#     ✅ به‌روزرسانی اطلاعات کاربر
-#     """
-#     user = db.query(User).filter(User.id == user_id).first()
-#     if not user:
-#         raise HTTPException(
-#             status_code=status.HTTP_404_NOT_FOUND,
-#             detail=f"❌ کاربر با شناسه {user_id} یافت نشد"
-#         )
-    
-#     # به‌روزرسانی فیلدها
-#     user.username = user_update.username
-#     user.email = user_update.email
-#     user.first_name = user_update.first_name
-#     user.last_name = user_update.last_name
-    
-#     # اگر پسورد جدید داده شده، آن را هش کن
-#     if user_update.password:
-#         user.set_password(user_update.password)
-    
-#     db.commit()
-#     db.refresh(user)
-    
-#     print(f"✅ کاربر با ID {user_id} به‌روزرسانی شد")
-#     return user
 
-# # ============================================
-# # 6. حذف کاربر
-# # ============================================
-# @app.delete("/users/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
-# def delete_user(user_id: int, db: Session = Depends(get_db)):
-#     """
-#     ✅ حذف کاربر از دیتابیس
-#     """
-#     user = db.query(User).filter(User.id == user_id).first()
-#     if not user:
-#         raise HTTPException(
-#             status_code=status.HTTP_404_NOT_FOUND,
-#             detail=f"❌ کاربر با شناسه {user_id} یافت نشد"
-#         )
-    
-#     db.delete(user)
-#     db.commit()
-    
-#     print(f"🗑️ کاربر با ID {user_id} حذف شد")
-#     return None  # 204 No Content
 
-# # ============================================
-# # 7. اندپوینت سلامت (Health Check)
-# # ============================================
-# @app.get("/health")
-# def health_check():
-#     """
-#     ✅ بررسی وضعیت سرویس
-#     """
-#     return {
-#         "status": "healthy",
-#         "message": "✅ سامانه کتابخانه با موفقیت اجرا می‌شود",
-#         "timestamp": "2026-08-13"
-#     }
+@app.post("/book_create/", response_model=BookResponse, status_code=status.HTTP_201_CREATED)
+def create_book(
+    book: BookCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user_from_token)
+):
+    # بررسی دسترسی - فقط ADMIN و EDITOR
+    user_roles = [role.Role_of_user.value for role in current_user.roles]
+    if ADMIN not in user_roles and EDITOR not in user_roles:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="شما دسترسی لازم را ندارید. فقط ادمین و ویرایشگر می‌توانند کتاب ایجاد کنند"
+        )
+    
 
-# # ============================================
-# # اجرای برنامه (برای دیباگ)
-# # ============================================
-# if __name__ == "__main__":
-#     import uvicorn
-#     print("🚀 در حال اجرای سامانه کتابخانه...")
-#     uvicorn.run(app, host="127.0.0.1", port=8000, reload=True)
+    new_book = Book(
+        title=book.title,
+        publisher=book.publisher,
+        category=book.category,
+        description=book.description,
+        quantity=book.quantity
+    )
+    
+    db.add(new_book)
+    db.commit()
+    db.refresh(new_book)
+    
+
+    if book.author_ids:
+        authors = db.query(Author).filter(Author.id.in_(book.author_ids)).all()
+        if authors:
+            new_book.authors.extend(authors)
+            db.commit()
+            db.refresh(new_book)
+    
+    return new_book
+
+
+@app.get("/books/", response_model=List[BookResponse])
+def get_books(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user_from_token)
+):
+    books = db.query(Book).all()
+    return books
+
+
+@app.get("/books/{book_id}/", response_model=BookResponse)
+def get_book(
+    book_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user_from_token)
+):
+    book = db.query(Book).filter(Book.id == book_id).first()
+    if not book:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="کتاب یافت نشد"
+        )
+    return book
+
+
+
+
+
+@app.put("/books/{book_id}/", response_model=BookResponse)
+def update_book(
+    book_id: int,
+    book_update: BookCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user_from_token)
+):
+    
+    user_roles = [role.Role_of_user.value for role in current_user.roles]
+    if ADMIN not in user_roles and EDITOR not in user_roles:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="شما دسترسی لازم را ندارید. فقط ادمین و ویرایشگر می‌توانند کتاب را ویرایش کنند"
+        )
+    
+    book = db.query(Book).filter(Book.id == book_id).first()
+    if not book:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="کتاب یافت نشد"
+        )
+    
+
+    book.title = book_update.title
+    book.publisher = book_update.publisher
+    book.category = book_update.category
+    book.description = book_update.description
+    book.quantity = book_update.quantity
+    
+
+    if book_update.author_ids is not None:
+        authors = db.query(Author).filter(Author.id.in_(book_update.author_ids)).all()
+        book.authors = authors
+    
+    db.commit()
+    db.refresh(book)
+    
+    return book
+
+
+@app.delete("/books/{book_id}/", status_code=status.HTTP_204_NO_CONTENT)
+def delete_book(
+    book_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user_from_token)
+):
+  
+    user_roles = [role.Role_of_user.value for role in current_user.roles]
+    if ADMIN not in user_roles:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="شما دسترسی لازم را ندارید. فقط ادمین می‌تواند کتاب را حذف کند"
+        )
+    
+    book = db.query(Book).filter(Book.id == book_id).first()
+    if not book:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="کتاب یافت نشد"
+        )
+    
+    db.delete(book)
+    db.commit()
+    
+    return None
+
+
+
+
+
+
+
+@app.post("/authors/", response_model=AuthorResponse, status_code=status.HTTP_201_CREATED)
+def create_author(
+    author: AuthorCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user_from_token)
+):
+ 
+    user_roles = [role.Role_of_user.value for role in current_user.roles]
+    if ADMIN not in user_roles:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="شما دسترسی لازم را ندارید. فقط ادمین می‌تواند نویسنده ایجاد کند"
+        )
+    
+    new_author = Author(
+        first_name=author.first_name,
+        last_name=author.last_name,
+        birth_date=author.birth_date,
+        nationality=author.nationality
+    )
+    
+    db.add(new_author)
+    db.commit()
+    db.refresh(new_author)
+    
+    return new_author
+
+
+
+@app.get("/authors/", response_model=List[AuthorResponse])
+def get_authors(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user_from_token)
+):
+    authors = db.query(Author).all()
+    return authors
+
+
+@app.get("/authors/{author_id}/", response_model=AuthorResponse)
+def get_author(
+    author_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user_from_token)
+):
+    author = db.query(Author).filter(Author.id == author_id).first()
+    if not author:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="نویسنده یافت نشد"
+        )
+    return author
+
+
+
+
+@app.put("/authors/{author_id}/", response_model=AuthorResponse)
+def update_author(
+    author_id: int,
+    author_update: AuthorCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user_from_token)
+):
+    
+    user_roles = [role.Role_of_user.value for role in current_user.roles]
+    if ADMIN not in user_roles:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="شما دسترسی لازم را ندارید. فقط ادمین می‌تواند نویسنده را ویرایش کند"
+        )
+    
+    author = db.query(Author).filter(Author.id == author_id).first()
+    if not author:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="نویسنده یافت نشد"
+        )
+    
+  
+    author.first_name = author_update.first_name
+    author.last_name = author_update.last_name
+    author.birth_date = author_update.birth_date
+    author.nationality = author_update.nationality
+    
+    db.commit()
+    db.refresh(author)
+    
+    return author
+
+
+
+@app.delete("/authors/{author_id}/", status_code=status.HTTP_204_NO_CONTENT)
+def delete_author(
+    author_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user_from_token)
+):
+  
+    user_roles = [role.Role_of_user.value for role in current_user.roles]
+    if ADMIN not in user_roles:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="شما دسترسی لازم را ندارید. فقط ادمین می‌تواند نویسنده را حذف کند"
+        )
+    
+    author = db.query(Author).filter(Author.id == author_id).first()
+    if not author:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="نویسنده یافت نشد"
+        )
+    
+    db.delete(author)
+    db.commit()
+    
+    return None
+
+
+
+
+
+
+@app.get("/users/", response_model=List[UserResponse])
+def get_users(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user_from_token)
+):
+  
+    user_roles = [role.Role_of_user.value for role in current_user.roles]
+    if ADMIN not in user_roles:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="شما دسترسی لازم را ندارید. فقط ادمین می‌تواند لیست کاربران را ببیند"
+        )
+    
+    users = db.query(User).all()
+    return users
+
+
+
+@app.get("/users/{user_id}/", response_model=UserResponse)
+def get_user(
+    user_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user_from_token)
+):
+   
+    user_roles = [role.Role_of_user.value for role in current_user.roles]
+    if ADMIN not in user_roles:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="شما دسترسی لازم را ندارید. فقط ادمین می‌تواند اطلاعات کاربران را ببیند"
+        )
+    
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="کاربر یافت نشد"
+        )
+    return user
+
+
+
+@app.delete("/users/{user_id}/", status_code=status.HTTP_204_NO_CONTENT)
+def delete_user(
+    user_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user_from_token)
+):
+    
+    user_roles = [role.Role_of_user.value for role in current_user.roles]
+    if ADMIN not in user_roles:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="شما دسترسی لازم را ندارید. فقط ادمین می‌تواند کاربر را حذف کند"
+        )
+    
+    
+    if current_user.id == user_id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="شما نمی‌توانید خودتان را حذف کنید"
+        )
+    
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="کاربر یافت نشد"
+        )
+    
+    db.delete(user)
+    db.commit()
+    
+    return None
+
+
+
+@app.get("/me/", response_model=UserResponse)
+def get_current_user_info(
+    current_user: User = Depends(get_current_user_from_token)
+):
+    return current_user
+
 
