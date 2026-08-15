@@ -9,7 +9,7 @@ SECRET_KEY = "my-secret-key-12345"
 ALGORITHM = "HS256"
 EXPIRE_MINUTES = 30
 
-# پسوردهای ویژه
+# پسوردهای ادمین و ادیتور
 secret_password_admin = "rsehzerfhregwsgeh"
 secret_password_editor = "kljj;jhlhbhjkhbkl"
 
@@ -18,12 +18,7 @@ def create_token(user_id: int, type_user: str) -> str:
 
     expire = datetime.now(timezone.utc) + timedelta(minutes=EXPIRE_MINUTES)
     
-    payload = {
-        "user_id": user_id,
-        "exp": expire,  
-        "iat": datetime.now(timezone.utc),  
-        "type": type_user
-    }
+    payload = {"user_id": user_id , "exp": expire  ,  "iat": datetime.now(timezone.utc),  "type": type_user}
     
     token = jwt.encode(payload, SECRET_KEY, algorithm=ALGORITHM)
 
@@ -44,10 +39,10 @@ def decode_token(token: str) -> dict:
 
             if exp_time < now:
 
-                raise HTTPException(
-                    status_code=status.HTTP_401_UNAUTHORIZED,
-                    detail="توکن منقضی شده است. لطفاً دوباره لاگین کنید"
-                )
+                raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail="توکن منقضی شده است. لطفاً دوباره لاگین کنید")
+            
+            
             else:
                 remaining = (exp_time - now).total_seconds()
 
@@ -58,20 +53,23 @@ def decode_token(token: str) -> dict:
 
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="توکن منقضی شده است. لطفاً دوباره لاگین کنید"
-        )
+            detail="توکن منقضی شده است. لطفاً دوباره لاگین کنید")
+    
+
     except InvalidSignatureError:
 
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="امضای توکن نامعتبر است"
+
         )
     except DecodeError as e:
 
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail=f"توکن نامعتبر است: {str(e)}"
-        )
+        raise HTTPException( status_code=status.HTTP_401_UNAUTHORIZED,
+            detail=f"توکن نامعتبر است: {str(e)}")
+    
+
+
     except HTTPException:
         raise
     except Exception as e:
@@ -79,6 +77,7 @@ def decode_token(token: str) -> dict:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail=f"خطا در اعتبارسنجی توکن: {str(e)}"
+
         )
 
 
@@ -90,7 +89,7 @@ def get_current_user(token: str, db: Session) -> User:
     if not user_id:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="شناسه کاربر در توکن یافت نشد"
+            detail="شناسه کاربرت در توکن یافت نشد"
         )
     
     user = db.query(User).filter(User.id == user_id).first()
@@ -98,7 +97,9 @@ def get_current_user(token: str, db: Session) -> User:
     if not user:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="کاربر یافت نشد"
+            detail="کاربری یافت نشد"
+
+
         )
 
     return user
