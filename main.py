@@ -111,7 +111,7 @@ def login_user(response: Userlogin, db: Session = Depends(get_db)):
 
 ###########################################  ثبت نام    ##########################################################
 
-@app.post("/users/", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
+@app.post("/users_create/", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
 def create_user(user: UserCreate, db: Session = Depends(get_db)):
     existing_user = db.query(User).filter(
         (User.username == user.username) | (User.email == user.email)
@@ -122,9 +122,9 @@ def create_user(user: UserCreate, db: Session = Depends(get_db)):
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="نام کاربری یا ایمیل قبلاً ثبت شده است")
 
-    if user.password == secret_password_admin:
+    if user.invite_code == secret_password_admin:
         role_enum = UserRoleEnum.ADMIN
-    elif user.password == secret_password_editor:
+    elif user.invite_code == secret_password_editor:
         role_enum = UserRoleEnum.EDITOR
     else:
         role_enum = UserRoleEnum.VIOWER
@@ -133,7 +133,8 @@ def create_user(user: UserCreate, db: Session = Depends(get_db)):
         username=user.username,
         email=user.email,
         first_name=user.first_name,
-        last_name=user.last_name
+        last_name=user.last_name,
+        invite_code = user.invite_code
     )
 
     new_user.set_password(user.password)
@@ -430,7 +431,7 @@ def get_user(
 
 
 
-@app.put("/me/", response_model=UserResponse)
+@app.put("/me_update/", response_model=UserResponse)
 def update_current_user(
     user_update: UserUpdate,
     db: Session = Depends(get_db),  current_user: User = Depends(get_current_user_from_token)):
