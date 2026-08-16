@@ -52,6 +52,7 @@ class User(Base):
     password = Column(String(255), nullable=False)
     first_name = Column(String(100), nullable=True)
     last_name = Column(String(100), nullable=True)
+    invite_code = Column(String(100), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     roles = relationship("Role", secondary=user_role, back_populates="users")
