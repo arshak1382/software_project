@@ -48,6 +48,10 @@ class Userlogin(BaseModel):
 class UserCreate(UserBase):
     password: str = Field(..., min_length=1, description="رمز عبور")
     role_ids: Optional[List[int]] = Field(default=[], description="لیست شناسه نقش‌ها")
+    invite_code: Optional[str] = Field(
+    default=None,
+    description="کد اختصاصی برای دریافت نقش ادمین یا ادیتور (اختیاری)"
+    )
 
     @field_validator('password')
     def validate_password(cls, v):
