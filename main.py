@@ -264,10 +264,10 @@ def delete_book(
 ):
 
     user_roles = [role.Role_of_user.value for role in current_user.roles]
-    if ADMIN not in user_roles:
+    if ADMIN not in user_roles and EDITOR not in user_roles:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="شما دسترسی لازم را ندارید. فقط ادمین می‌تواند کتاب را حذف کند"
+            detail="شما دسترسی لازم را ندارید. فقط ادمین و ویرایشگر می‌توانند کتاب ایجاد کنند"
         )
 
     book = db.query(Book).filter(Book.id == book_id).first()
@@ -291,10 +291,10 @@ def create_author(
 ):
 
     user_roles = [role.Role_of_user.value for role in current_user.roles]
-    if ADMIN not in user_roles:
+    if ADMIN not in user_roles and EDITOR not in user_roles:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="شما دسترسی لازم را ندارید. فقط ادمین می‌تواند نویسنده ایجاد کند"
+            detail="شما دسترسی لازم را ندارید. فقط ادمین و ویرایشگر می‌توانند کتاب ایجاد کنند"
         )
 
     new_author = Author(
@@ -340,10 +340,10 @@ def update_author(
 ):
 
     user_roles = [role.Role_of_user.value for role in current_user.roles]
-    if ADMIN not in user_roles:
+    if ADMIN not in user_roles and EDITOR not in user_roles:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="شما دسترسی لازم را ندارید. فقط ادمین می‌تواند نویسنده را ویرایش کند"
+            detail="شما دسترسی لازم را ندارید. فقط ادمین و ویرایشگر می‌توانند کتاب ایجاد کنند"
         )
 
     author = db.query(Author).filter(Author.id == author_id).first()
@@ -371,10 +371,10 @@ def delete_author(
 ):
 
     user_roles = [role.Role_of_user.value for role in current_user.roles]
-    if ADMIN not in user_roles:
+    if ADMIN not in user_roles and EDITOR not in user_roles:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="شما دسترسی لازم را ندارید. فقط ادمین می‌تواند نویسنده را حذف کند"
+            detail="شما دسترسی لازم را ندارید. فقط ادمین و ویرایشگر می‌توانند کتاب ایجاد کنند"
         )
 
     author = db.query(Author).filter(Author.id == author_id).first()
