@@ -164,11 +164,15 @@ def create_user(user: UserCreate, db: Session = Depends(get_db)):
 def create_book(
     book: BookCreate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user_from_token)
+    current_user: User = Depends(get_current_user_from_token), 
+    credentials: HTTPAuthorizationCredentials = Depends(security)
 ):
+    token = credentials.credentials
+    payload = decode_token(token)
+
     # بررسی دسترسی - فقط ADMIN و EDITOR
-    user_roles = [role.Role_of_user.value for role in current_user.roles]
-    if ADMIN not in user_roles and EDITOR not in user_roles:
+    current_role = payload.get("type")
+    if current_role not in (ADMIN, EDITOR):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="شما دسترسی لازم را ندارید. فقط ادمین و ویرایشگر می‌توانند کتاب ایجاد کنند"
@@ -219,16 +223,20 @@ def get_book(
         )
     return book
 
-@app.put("/books/{book_id}/", response_model=BookResponse)
+@app.put("/books/update/{book_id}/", response_model=BookResponse)
 def update_book(
     book_id: int,
     book_update: BookCreate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user_from_token)
+    current_user: User = Depends(get_current_user_from_token), 
+    credentials: HTTPAuthorizationCredentials = Depends(security)
 ):
+    token = credentials.credentials
+    payload = decode_token(token)
 
-    user_roles = [role.Role_of_user.value for role in current_user.roles]
-    if ADMIN not in user_roles and EDITOR not in user_roles:
+    # بررسی دسترسی - فقط ADMIN و EDITOR
+    current_role = payload.get("type")
+    if current_role not in (ADMIN, EDITOR):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="شما دسترسی لازم را ندارید. فقط ادمین و ویرایشگر می‌توانند کتاب را ویرایش کنند"
@@ -257,15 +265,19 @@ def update_book(
     return book
 
 
-@app.delete("/books/{book_id}/", status_code=status.HTTP_204_NO_CONTENT)
+@app.delete("/books/delete/{book_id}/", status_code=status.HTTP_204_NO_CONTENT)
 def delete_book(
     book_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user_from_token)
+    current_user: User = Depends(get_current_user_from_token), 
+    credentials: HTTPAuthorizationCredentials = Depends(security)
 ):
+    token = credentials.credentials
+    payload = decode_token(token)
 
-    user_roles = [role.Role_of_user.value for role in current_user.roles]
-    if ADMIN not in user_roles and EDITOR not in user_roles:
+    # بررسی دسترسی - فقط ADMIN و EDITOR
+    current_role = payload.get("type")
+    if current_role not in (ADMIN, EDITOR):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="شما دسترسی لازم را ندارید. فقط ادمین و ویرایشگر می‌توانند کتاب ایجاد کنند"
@@ -284,15 +296,19 @@ def delete_book(
     return None
 
 
-@app.post("/authors/", response_model=AuthorResponse, status_code=status.HTTP_201_CREATED)
+@app.post("/authors/craete/", response_model=AuthorResponse, status_code=status.HTTP_201_CREATED)
 def create_author(
     author: AuthorCreate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user_from_token)
+    current_user: User = Depends(get_current_user_from_token), 
+    credentials: HTTPAuthorizationCredentials = Depends(security)
 ):
+    token = credentials.credentials
+    payload = decode_token(token)
 
-    user_roles = [role.Role_of_user.value for role in current_user.roles]
-    if ADMIN not in user_roles and EDITOR not in user_roles:
+    # بررسی دسترسی - فقط ADMIN و EDITOR
+    current_role = payload.get("type")
+    if current_role not in (ADMIN, EDITOR):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="شما دسترسی لازم را ندارید. فقط ادمین و ویرایشگر می‌توانند کتاب ایجاد کنند"
@@ -332,16 +348,20 @@ def get_author(
     return author
 
 
-@app.put("/authors/{author_id}/", response_model=AuthorResponse)
+@app.put("/authors/update/{author_id}/", response_model=AuthorResponse)
 def update_author(
     author_id: int,
     author_update: AuthorCreate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user_from_token)
+    current_user: User = Depends(get_current_user_from_token), 
+    credentials: HTTPAuthorizationCredentials = Depends(security)
 ):
+    token = credentials.credentials
+    payload = decode_token(token)
 
-    user_roles = [role.Role_of_user.value for role in current_user.roles]
-    if ADMIN not in user_roles and EDITOR not in user_roles:
+    # بررسی دسترسی - فقط ADMIN و EDITOR
+    current_role = payload.get("type")
+    if current_role not in (ADMIN, EDITOR):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="شما دسترسی لازم را ندارید. فقط ادمین و ویرایشگر می‌توانند کتاب ایجاد کنند"
@@ -364,15 +384,19 @@ def update_author(
     return author
 
 
-@app.delete("/authors/{author_id}/", status_code=status.HTTP_204_NO_CONTENT)
+@app.delete("/authors/delete/{author_id}/", status_code=status.HTTP_204_NO_CONTENT)
 def delete_author(
     author_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user_from_token)
+    current_user: User = Depends(get_current_user_from_token), 
+    credentials: HTTPAuthorizationCredentials = Depends(security)
 ):
+    token = credentials.credentials
+    payload = decode_token(token)
 
-    user_roles = [role.Role_of_user.value for role in current_user.roles]
-    if ADMIN not in user_roles and EDITOR not in user_roles:
+    # بررسی دسترسی - فقط ADMIN و EDITOR
+    current_role = payload.get("type")
+    if current_role not in (ADMIN, EDITOR):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="شما دسترسی لازم را ندارید. فقط ادمین و ویرایشگر می‌توانند کتاب ایجاد کنند"
@@ -395,11 +419,15 @@ def delete_author(
 @app.get("/users/", response_model=List[UserResponse])
 def get_users(
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user_from_token)
+    current_user: User = Depends(get_current_user_from_token), 
+    credentials: HTTPAuthorizationCredentials = Depends(security)
 ):
+    token = credentials.credentials
+    payload = decode_token(token)
 
-    user_roles = [role.Role_of_user.value for role in current_user.roles]
-    if ADMIN not in user_roles:
+    # بررسی دسترسی - فقط ADMIN و EDITOR
+    current_role = payload.get("type")
+    if current_role != ADMIN:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="شما دسترسی لازم را ندارید. فقط ادمین می‌تواند لیست کاربران را ببیند")
@@ -411,11 +439,15 @@ def get_users(
 def get_user(
     user_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user_from_token)
+    current_user: User = Depends(get_current_user_from_token), 
+    credentials: HTTPAuthorizationCredentials = Depends(security)
 ):
+    token = credentials.credentials
+    payload = decode_token(token)
 
-    user_roles = [role.Role_of_user.value for role in current_user.roles]
-    if ADMIN not in user_roles:
+    # بررسی دسترسی - فقط ADMIN و EDITOR
+    current_role = payload.get("type")
+    if current_role != ADMIN:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="شما دسترسی لازم را ندارید. فقط ادمین می‌تواند اطلاعات کاربران را ببیند"
@@ -434,10 +466,15 @@ def get_user(
 @app.put("/me_update/", response_model=UserResponse)
 def update_current_user(
     user_update: UserUpdate,
-    db: Session = Depends(get_db),  current_user: User = Depends(get_current_user_from_token)):
+    db: Session = Depends(get_db),  current_user: User = Depends(get_current_user_from_token), 
+    credentials: HTTPAuthorizationCredentials = Depends(security)
+):
+    token = credentials.credentials
+    payload = decode_token(token)
 
-    user_roles = [role.Role_of_user.value for role in current_user.roles]
-    is_admin = ADMIN in user_roles
+    # بررسی دسترسی - فقط ADMIN و EDITOR
+    current_role = payload.get("type")
+    is_admin = current_role == ADMIN
 
     # بررسی یکتایی
     if user_update.username is not None and user_update.username != current_user.username:
@@ -494,15 +531,19 @@ def update_current_user(
 
     return current_user
 
-@app.delete("/users/{user_id}/", status_code=status.HTTP_204_NO_CONTENT)
+@app.delete("/users/delete/{user_id}/", status_code=status.HTTP_204_NO_CONTENT)
 def delete_user(
     user_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user_from_token)
+    current_user: User = Depends(get_current_user_from_token), 
+    credentials: HTTPAuthorizationCredentials = Depends(security)
 ):
+    token = credentials.credentials
+    payload = decode_token(token)
 
-    user_roles = [role.Role_of_user.value for role in current_user.roles]
-    if ADMIN not in user_roles:
+    # بررسی دسترسی - فقط ADMIN و EDITOR
+    current_role = payload.get("type")
+    if current_role != ADMIN:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="شما دسترسی لازم را ندارید. فقط ادمین می‌تواند کاربر را حذف کند"
